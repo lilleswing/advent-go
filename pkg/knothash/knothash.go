@@ -2,7 +2,7 @@ package knothash
 
 import "fmt"
 
-func createLenghts(s string) [] int {
+func createLengths(s string) [] int {
 	l := make([]int, len(s), len(s)+5)
 	for i := range s {
 		l[i] = int(s[i])
@@ -87,6 +87,6 @@ func toHex(i int) string {
 }
 
 func KnotHash(s string) string {
-	lengths := createLenghts(s)
+	lengths := createLengths(s)
 	return hashIt(lengths, 256)
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
-	"pkg/knothash/knothash"
+	"github.com/lilleswing/advent-go/pkg/knothash"
 )
 
 func part1(lengths []int, size int) {
@@ -66,50 +66,9 @@ func parseLengths(s string) []int {
 	return l
 }
 
-func parsePart2Lengths(s string) [] int {
-	l := make([]int, len(s), len(s)+5)
-	for i := range s {
-		l[i] = int(s[i])
-	}
-	l = append(l, 17, 31, 73, 47, 23)
-	return l
-}
-
-func part2(lengths []int, size int) {
-	spHash := knot(lengths, size, 64)
-	dHash := denseHash(spHash)
-	s := ""
-	for i := range dHash {
-		s += toHex(dHash[i])
-	}
-	fmt.Println(s)
-}
-func toHex(i int) string {
-	s := fmt.Sprintf("%x", i)
-	if len(s) == 1 {
-		return "0" + s
-	}
-	return s
-}
-
-func denseHash(l []int) []int {
-	retval := make([]int, 16)
-	for i := 0; i < 16; i++ {
-		offset := i * 16
-		v := l[offset]
-		for j := 1; j < 16; j++ {
-			v = v ^ l[offset+j]
-		}
-		retval[i] = v
-	}
-	return retval
-}
-
 func main() {
 	slengths := "227,169,3,166,246,201,0,47,1,255,2,254,96,3,97,144"
 	lengths := parseLengths(slengths)
 	part1(lengths, 256)
-	lengths = parsePart2Lengths(slengths)
-	part2(lengths, 256)
-	knothash.KnotHash(slengths)
+	fmt.Println(knothash.KnotHash(slengths))
 }
