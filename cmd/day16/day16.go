@@ -87,14 +87,13 @@ func programToKey(pgrams []string) string {
 
 func part2(programs []string, moves []string) {
 	posMap := make(map[string]int)
+	startingKey := programToKey(programs)
+	key := ""
 	runs := 0
-	exists := false
-	for ; !exists; {
-		key := programToKey(programs)
+	for ; key != startingKey; {
 		posMap[key] = runs
 		programs = part1(programs, moves)
 		key = programToKey(programs)
-		_, exists = posMap[key]
 		runs += 1
 	}
 	for k, v := range (posMap) {
