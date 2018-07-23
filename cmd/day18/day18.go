@@ -92,7 +92,6 @@ func part1(moves [][]string) int {
 	index := 0
 	for ; index >= 0 && index < len(moves); {
 		move := moves[index]
-		//fmt.Println(index, move[0])
 		v, exists := regs["rcv"]
 		if exists {
 			return v
@@ -119,9 +118,69 @@ func part1(moves [][]string) int {
 	return -1
 }
 
+func part2(moves [][]string) int {
+	messages1 := make(chan int, 500)
+	regs1 := initializeRegisters()
+	regs1["cnt"] = 0
+	messages2 := make(chan int, 500)
+	regs2 := initializeRegisters()
+	regs2["cnt"] = 0
+	regs2["p"] = 1
+
+	finished := make(chan int, 2)
+
+	go duet(moves, regs1, messages1, messages2, 0, finished)
+	go duet(moves, regs2, messages2, messages1, 1, finished)
+	<-finished
+	<-finished
+	return regs2["cnt"]
+}
+
+func duet(moves [][]string, regs map[string]int,
+	send chan int, recieve chan int, pid int, finished chan int) {
+	index := 0
+	for ; index >= 0 && index < len(moves); {
+		move := moves[index]
+		if move[0] == "snd" {
+			index += snd2(regs, move[1], send)
+			if pid == 1 {
+				fmt.Println(regs["cnt"])
+			}
+		} else if move[0] == "set" {
+			index += set(regs, move[1], move[2])
+		} else if move[0] == "add" {
+			index += add(regs, move[1], move[2])
+		} else if move[0] == "mul" {
+			index += mul(regs, move[1], move[2])
+		} else if move[0] == "mod" {
+			index += mod(regs, move[1], move[2])
+		} else if move[0] == "rcv" {
+			index += rcv2(regs, move[1], recieve)
+		} else if move[0] == "jgz" {
+			index += jgz(regs, move[1], move[2])
+		} else {
+			fmt.Println("No Command " + move[0])
+		}
+	}
+	finished <- 1
+}
+
+func rcv2(regs map[string]int, reg string, channel chan int) int {
+	regs[reg] = <-channel
+	return 1
+}
+
+func snd2(regs map[string]int, v string, channel chan int) int {
+	regs["cnt"] += 1
+	value := toInt(regs, v)
+	channel <- value
+	return 1
+}
+
 func main() {
 	lines := readFile("assets/day18.in")
-	fmt.Println(part1(lines))
+	//fmt.Println(part1(lines))
+	fmt.Println(part2(lines))
 	//messages := make(chan int)
 	//regs := initializeRegisters()
 	//set(regs, "i", "2")
