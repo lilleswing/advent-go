@@ -30,6 +30,7 @@ func initializeRegisters() map[string]int {
 		regs[string(v)] = 0
 	}
 	regs["snd"] = 0
+	regs["index"] = 0
 	return regs
 }
 
@@ -41,149 +42,169 @@ func toInt(regs map[string]int, s string) int {
 	return v
 }
 
-func set(regs map[string]int, i string, i2 string) int {
-	v := toInt(regs, i2)
+func set(regs map[string]int, i string, v int) {
 	regs[i] = v
-	return 1
+	regs["index"] += 1
 }
 
-func add(regs map[string]int, i string, i2 string) int {
-	v := toInt(regs, i2)
+func add(regs map[string]int, i string, v int) {
 	regs[i] += v
-	return 1
+	regs["index"] += 1
 }
 
-func mul(regs map[string]int, i string, i2 string) int {
-	v := toInt(regs, i2)
+func mul(regs map[string]int, i string, v int) {
 	regs[i] *= v
-	return 1
+	regs["index"] += 1
 }
 
-func mod(regs map[string]int, i string, i2 string) int {
-	v := toInt(regs, i2)
+func mod(regs map[string]int, i string, v int) {
 	regs[i] = regs[i] % v
-	return 1
+	regs["index"] += 1
 }
 
-func snd(regs map[string]int, i string) int {
-	regs["snd"] = regs[i]
-	return 1
+func snd(regs map[string]int, v int) {
+	regs["snd"] = v
+	regs["index"] += 1
 }
 
-func rcv(regs map[string]int, i string) int {
+func rcv(regs map[string]int, i string) {
 	v, _ := regs[i]
 	if v != 0 {
 		regs["rcv"] = regs["snd"]
 	}
-	return 1
+	regs["index"] += 1
 }
 
-func jgz(regs map[string]int, i string, i2 string) int {
-	v, _ := regs[i]
-	y := toInt(regs, i2)
-	if v > 0 {
-		return y
+func jgz(regs map[string]int, i string, v int) {
+	regValue := regs[i]
+	if regValue > 0 {
+		regs["index"] += v
+		return
 	}
-	return 1
+	regs["index"] += 1
 }
 
 func part1(moves [][]string) int {
 	regs := initializeRegisters()
-	index := 0
-	for ; index >= 0 && index < len(moves); {
-		move := moves[index]
+	for ; regs["index"] >= 0 && regs["index"] < len(moves); {
+		move := moves[regs["index"]]
+		fmt.Println(regs)
+		fmt.Println(move)
 		v, exists := regs["rcv"]
 		if exists {
 			return v
 		}
 		if move[0] == "snd" {
-			index += snd(regs, move[1])
+			v := toInt(regs, move[1])
+			snd(regs, v)
 		} else if move[0] == "set" {
-			index += set(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			set(regs, move[1], v)
 		} else if move[0] == "add" {
-			index += add(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			add(regs, move[1], v)
 		} else if move[0] == "mul" {
-			index += mul(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			mul(regs, move[1], v)
 		} else if move[0] == "mod" {
-			index += mod(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			mod(regs, move[1], v)
 		} else if move[0] == "rcv" {
-			index += rcv(regs, move[1])
+			rcv(regs, move[1])
 		} else if move[0] == "jgz" {
-			index += jgz(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			jgz(regs, move[1], v)
 		} else {
 			fmt.Println("No Command " + move[0])
 		}
 	}
-	fmt.Println("Exixted Bounds")
+	fmt.Println("Exited Bounds")
 	return -1
 }
 
 func part2(moves [][]string) int {
-	messages1 := make(chan int, 500)
+	messages0 := make(chan int, 10000)
+	regs0 := initializeRegisters()
+	regs0["cnt"] = 0
+	messages1 := make(chan int, 10000)
 	regs1 := initializeRegisters()
 	regs1["cnt"] = 0
-	messages2 := make(chan int, 500)
-	regs2 := initializeRegisters()
-	regs2["cnt"] = 0
-	regs2["p"] = 1
+	regs1["p"] = 1
 
-	finished := make(chan int, 2)
-
-	go duet(moves, regs1, messages1, messages2, 0, finished)
-	go duet(moves, regs2, messages2, messages1, 1, finished)
-	<-finished
-	<-finished
-	return regs2["cnt"]
+	mut1, mut2 := true, true
+	steps := 0
+	for ; mut1 || mut2; {
+		mut1 = duet(moves, regs0, messages0, messages1)
+		mut2 = duet(moves, regs1, messages1, messages0)
+		steps += 1
+	}
+	v, _ := regs1["cnt"]
+	fmt.Println(v)
+	return 0
 }
 
 func duet(moves [][]string, regs map[string]int,
-	send chan int, recieve chan int, pid int, finished chan int) {
-	index := 0
-	for ; index >= 0 && index < len(moves); {
-		move := moves[index]
+	send chan int, receive chan int) (bool) {
+	mutated := false
+	for ; regs["index"] >= 0 && regs["index"] < len(moves); {
+		move := moves[regs["index"]]
 		if move[0] == "snd" {
-			index += snd2(regs, move[1], send)
-			if pid == 1 {
-				fmt.Println(regs["cnt"])
+			v := toInt(regs, move[1])
+			ok := snd2(regs, v, send)
+			if !ok {
+				return mutated
 			}
 		} else if move[0] == "set" {
-			index += set(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			set(regs, move[1], v)
 		} else if move[0] == "add" {
-			index += add(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			add(regs, move[1], v)
 		} else if move[0] == "mul" {
-			index += mul(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			mul(regs, move[1], v)
 		} else if move[0] == "mod" {
-			index += mod(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			mod(regs, move[1], v)
 		} else if move[0] == "rcv" {
-			index += rcv2(regs, move[1], recieve)
+			ok := rcv2(regs, move[1], receive)
+			if !ok {
+				return mutated
+			}
 		} else if move[0] == "jgz" {
-			index += jgz(regs, move[1], move[2])
+			v := toInt(regs, move[2])
+			jgz(regs, move[1], v)
 		} else {
 			fmt.Println("No Command " + move[0])
 		}
+		mutated = true
 	}
-	finished <- 1
+	return mutated
 }
 
-func rcv2(regs map[string]int, reg string, channel chan int) int {
-	regs[reg] = <-channel
-	return 1
+func rcv2(regs map[string]int, reg string, channel chan int) (bool) {
+	select {
+	case regs[reg] = <-channel:
+		regs["index"] += 1
+		return true
+	default:
+		return false
+	}
 }
 
-func snd2(regs map[string]int, v string, channel chan int) int {
-	regs["cnt"] += 1
-	value := toInt(regs, v)
-	channel <- value
-	return 1
+func snd2(regs map[string]int, v int, channel chan int) (bool) {
+	select {
+	case channel <- v:
+		regs["cnt"] += 1
+		regs["index"] += 1
+		return true
+	default:
+		return false
+	}
 }
 
 func main() {
 	lines := readFile("assets/day18.in")
 	//fmt.Println(part1(lines))
-	fmt.Println(part2(lines))
-	//messages := make(chan int)
-	//regs := initializeRegisters()
-	//set(regs, "i", "2")
-	//fmt.Println(regs["i"])
-
+	part2(lines)
 }
